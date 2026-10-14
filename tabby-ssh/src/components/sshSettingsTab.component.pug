@@ -50,6 +50,17 @@ h3 SSH
         (ngModelChange)='config.save()',
     )
 
+.form-line(*ngIf='hostApp.platform !== Platform.Windows')
+    .header
+        .title(translate) SSH agent socket path
+        .description(translate) Overrides automatic SSH agent detection with a specific Unix socket.
+    input.form-control(
+        type='text',
+        placeholder='Auto-detect',
+        [(ngModel)]='config.store.ssh.agentPath',
+        (ngModelChange)='config.save()',
+    )
+
 .form-line
     .header
         .title(translate) Override X11 display

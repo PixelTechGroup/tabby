@@ -334,11 +334,11 @@ export class SSHSession {
         } else {
             const configuredPath = (this.config.store.ssh.agentPath ?? '').trim()
             const envPath = (process.env.SSH_AUTH_SOCK ?? '').trim()
-            let agentSocketPath = configuredPath || envPath
+            let agentSocketPath = configuredPath
 
-            // GUI launchers do not always inherit SSH_AUTH_SOCK. Bitwarden's
-            // Linux agent uses a stable per-user socket, so discover it when
-            // neither an explicit path nor the environment provides one.
+            // Desktop sessions may inherit a stale or unrelated SSH_AUTH_SOCK.
+            // Bitwarden's Linux agent uses a stable per-user socket, so prefer
+            // it when no explicit override is configured.
             if (!agentSocketPath && this.hostApp.platform === Platform.Linux) {
                 const bitwardenSocketPath = path.join(os.homedir(), '.bitwarden-ssh-agent.sock')
                 try {
@@ -350,6 +350,8 @@ export class SSHSession {
                     // Bitwarden SSH agent is not enabled on this machine.
                 }
             }
+
+            agentSocketPath ||= envPath
 
             if (!agentSocketPath) {
                 this.emitServiceMessage(colors.bgYellow.yellow.black(' ! ') + ' Agent auth selected, but SSH_AUTH_SOCK is not set')
