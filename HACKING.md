@@ -31,6 +31,19 @@ Build Tabby:
 yarn run build
 ```
 
+# Running tests
+
+The focused TypeScript tests can be run without building the application:
+
+```bash
+yarn run test:ssh-term
+yarn run test:config-sync
+```
+
+`test:ssh-term` requires Node.js 22.6 or newer for type stripping.
+`test:config-sync` requires Node.js 22.7 or newer because it uses
+`--experimental-transform-types`.
+
 Start Tabby
 
 ```

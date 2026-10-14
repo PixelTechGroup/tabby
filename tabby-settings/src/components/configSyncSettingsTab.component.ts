@@ -3,6 +3,8 @@ import { Component, HostBinding } from '@angular/core'
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap'
 import { BaseComponent, ConfigService, PromptModalComponent, HostAppService, PlatformService, NotificationsService, TranslateService } from 'tabby-core'
 import { Config, ConfigSyncService } from '../services/configSync.service'
+import { ConfigSyncConnection } from '../services/configSyncConnection'
+import { resolveSyncHostLink } from '../services/configSyncRequest'
 
 
 /** @hidden */
@@ -11,9 +13,7 @@ import { Config, ConfigSyncService } from '../services/configSync.service'
     templateUrl: './configSyncSettingsTab.component.pug',
 })
 export class ConfigSyncSettingsTabComponent extends BaseComponent {
-    connectionSuccessful: boolean|null = null
-    connectionError: Error|null = null
-    configs: Config[]|null = null
+    connection: ConfigSyncConnection<Config>
 
     @HostBinding('class.content-box') true
 
@@ -27,31 +27,37 @@ export class ConfigSyncSettingsTabComponent extends BaseComponent {
         private translate: TranslateService,
     ) {
         super()
+        this.connection = new ConfigSyncConnection(configSync)
     }
 
     async ngOnInit () {
-        await this.testConnection()
-        this.loadConfigs()
+        await this.connection.init(
+            this.config.store.configSync.host,
+            this.config.store.configSync.token,
+        )
     }
 
     async testConnection () {
-        if (!this.config.store.configSync.host || !this.config.store.configSync.token) {
-            return
-        }
-        this.connectionSuccessful = null
-        try {
-            await this.configSync.getUser()
-            this.connectionSuccessful = true
-            this.loadConfigs()
-        } catch (e) {
-            this.connectionSuccessful = false
-            this.connectionError = e
-            this.configs = null
-        }
+        await this.connection.testConnection(
+            this.config.store.configSync.host,
+            this.config.store.configSync.token,
+        )
     }
 
     async loadConfigs () {
-        this.configs = await this.configSync.getConfigs()
+        await this.connection.loadConfigs()
+    }
+
+    onCredentialsChanged () {
+        this.connection.syncCredentials(
+            this.config.store.configSync.host,
+            this.config.store.configSync.token,
+        )
+    }
+
+    get isInsecureHost () {
+        const host = this.config.store.configSync.host
+        return typeof host === 'string' && host.trim() !== '' && !/^https:\/\//i.test(host.trim())
     }
 
     async uploadAsNew () {
@@ -127,7 +133,7 @@ export class ConfigSyncSettingsTabComponent extends BaseComponent {
     }
 
     hasMatchingRemoteConfig () {
-        return !!this.configs?.find(c => this.isActiveConfig(c))
+        return !!this.connection.configs?.find(c => this.isActiveConfig(c))
     }
 
     isActiveConfig (c: Config) {
@@ -135,10 +141,9 @@ export class ConfigSyncSettingsTabComponent extends BaseComponent {
     }
 
     openSyncHost () {
-        if (this.config.store.configSync.host === 'https://api.tabby.sh') {
-            this.platform.openExternal('https://app.tabby.sh')
-        } else {
-            this.platform.openExternal(this.config.store.configSync.host)
+        const link = resolveSyncHostLink(this.config.store.configSync.host)
+        if (link) {
+            this.platform.openExternal(link)
         }
     }
 

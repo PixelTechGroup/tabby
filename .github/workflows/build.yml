@@ -28,6 +28,9 @@ jobs:
     - name: Test SSH TERM
       run: yarn run test:ssh-term
 
+    - name: Test Config Sync
+      run: yarn run test:config-sync
+
     - name: Build typings
       run: yarn run build:typings
 

@@ -6,13 +6,20 @@ ul.nav-tabs(ngbNav, #nav='ngbNav')
         ng-template(ngbNavContent)
             .form-line
                 .header
-                    .title(translate) Sync host
+                    .title(translate) Sync server URL
+                    .description
+                        span(translate) URL of your Tabby Web or self-hosted Tabby Sync server.
+                        span.ms-1(translate) Must use HTTPS.
 
                 .input-group.w-50
                     input.form-control(
                         type='text',
+                        placeholder='https://sync.example.com',
+                        #hostInput,
                         [(ngModel)]='config.store.configSync.host',
-                        (keydown.enter)='config.save()',
+                        [ngModelOptions]="{updateOn: 'blur'}",
+                        (ngModelChange)='config.save(); onCredentialsChanged()',
+                        (keydown.enter)='hostInput.blur()',
                     )
                     button.btn.btn-secondary(
                         *ngIf='config.store.configSync.host',
@@ -20,45 +27,48 @@ ul.nav-tabs(ngbNav, #nav='ngbNav')
                     )
                         i.fas.fa-external-link-alt
 
+                .text-danger.mt-1(*ngIf='isInsecureHost', translate) The sync server URL must use HTTPS.
+
             .form-line(*ngIf='config.store.configSync.host')
                 .header
-                    .title(translate) Secret sync token
-                    .description(translate) Get it from the Tabby Web settings window
+                    .title(translate) Authentication token
+                    .description(translate) Authentication token issued by your configured sync server.
 
                 .input-group
                     input.form-control(
                         type='password',
                         [(ngModel)]='config.store.configSync.token',
+                        (ngModelChange)='onCredentialsChanged()',
                         (keydown.enter)='config.save(); testConnection()'
                     )
                     .input-group-text(*ngIf='config.store.configSync.token')
-                        i.fas.fa-fw.fa-circle-notch.fa-spin.text-warning(*ngIf='connectionSuccessful === null')
-                        i.fas.fa-fw.fa-check.text-success(*ngIf='connectionSuccessful')
-                        i.fas.fa-fw.fa-exclamation-triangle.text-danger(*ngIf='connectionSuccessful === false')
+                        i.fas.fa-fw.fa-circle-notch.fa-spin.text-warning(*ngIf='connection.connectionSuccessful === null')
+                        i.fas.fa-fw.fa-check.text-success(*ngIf='connection.connectionSuccessful')
+                        i.fas.fa-fw.fa-exclamation-triangle.text-danger(*ngIf='connection.connectionSuccessful === false')
 
             .alert.alert-info.d-flex.align-items-center
                 .me-auto
-                    span(translate) Config sync requires an instance of the Tabby Web service.
+                    span(translate) Config sync requires a compatible sync server, such as Tabby Web or a self-hosted Tabby Sync server.
                     a.ml-1((click)='openTabbyWebInfo()', href='#', translate) Learn more
 
             ng-container(*ngIf='config.store.configSync.token')
-                .alert.alert-danger(*ngIf='connectionSuccessful === false')
+                .alert.alert-danger(*ngIf='connection.connectionSuccessful === false')
                     i.fas.fa-exclamation-triangle
-                    span.ms-2(translate='Connection failed: {error}', [translateParams]='{error: connectionError}')
+                    span.ms-2(translate='Connection failed: {error}', [translateParams]='{error: connection.connectionError}')
 
-            ng-container(*ngIf='connectionSuccessful')
+            ng-container(*ngIf='connection.connectionSuccessful')
                 .form-line
                     .header
                         .title(translate) Configs
 
-                div(*ngIf='configs === null')
+                div(*ngIf='connection.configs === null')
                     i.fas.fa-fw.fa-circle-notch.fa-spin
                     span.ms-2(translate) Loading configs...
 
-                ng-container(*ngIf='configs !== null')
+                ng-container(*ngIf='connection.configs !== null')
                     .list-group.list-group-light
                         .list-group-item.d-flex.align-items-center(
-                            *ngFor='let cfg of configs',
+                            *ngFor='let cfg of connection.configs',
                             [class.active]='isActiveConfig(cfg)',
                         )
                             i.fas.fa-fw.text-success([class.fa-check]='isActiveConfig(cfg)')
