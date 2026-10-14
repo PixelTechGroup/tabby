@@ -40,8 +40,17 @@ const LINUX_IME_TEXT_KEY_CODES = new Set([
     'Slash',
 ])
 
+const LINUX_FCITX_ACTIVE = [
+    process.env.GTK_IM_MODULE,
+    process.env.QT_IM_MODULE,
+    process.env.XMODIFIERS,
+].some(value => value?.toLowerCase().includes('fcitx'))
+
 function isIMETextKey (event: KeyboardEvent): boolean {
-    if (event.ctrlKey || event.altKey || event.metaKey) {
+    // Deferring these keys is only needed for Fcitx. Doing it for every Linux
+    // input method drops punctuation entirely in environments such as IBus,
+    // because no later IME commit event is emitted there.
+    if (!LINUX_FCITX_ACTIVE || event.ctrlKey || event.altKey || event.metaKey) {
         return false
     }
     return LINUX_IME_TEXT_KEY_CODES.has(event.code) || event.code === 'Space' && event.shiftKey
