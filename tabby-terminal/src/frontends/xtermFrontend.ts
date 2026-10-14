@@ -2,8 +2,9 @@ import deepEqual from 'deep-equal'
 import { BehaviorSubject, filter, firstValueFrom, fromEvent, takeUntil } from 'rxjs'
 import { Injector } from '@angular/core'
 import {
-    ConfigService, getCSSFontFamily, getWindows10Build, HostAppService, HotkeysService,
+    ConfigService, getCSSFontFamily, getWindows10Build, HostAppService, HotkeysService, isWindowsBuild,
     Platform, PlatformService, TerminalColorScheme, ThemesService,
+    WIN_BUILD_BUNDLED_CONPTY_SUPPORTED, WIN_BUILD_CONPTY_REFLOW_SUPPORTED,
 } from 'tabby-core'
 import { Frontend, SearchOptions, SearchState } from './frontend'
 import { Terminal, ITheme } from '@xterm/xterm'
@@ -18,6 +19,7 @@ import { CanvasAddon } from '@xterm/addon-canvas'
 import { BaseTerminalProfile } from '../api/interfaces'
 import { getXtermBackgroundColor } from '../helpers'
 import { generatePalette } from '../generatePalette'
+import { disposeWebglAddon } from './webglAddon'
 import './xterm.css'
 
 const COLOR_NAMES = [
@@ -162,7 +164,9 @@ export class XTermFrontend extends Frontend {
             overviewRulerWidth: 8,
             windowsPty: process.platform === 'win32' ? {
                 backend: this.configService.store.terminal.useConPTY ? 'conpty' : 'winpty',
-                buildNumber: getWindows10Build(),
+                buildNumber: this.configService.store.terminal.useConPTY && isWindowsBuild(WIN_BUILD_BUNDLED_CONPTY_SUPPORTED)
+                    ? WIN_BUILD_CONPTY_REFLOW_SUPPORTED
+                    : getWindows10Build(),
             } : undefined,
         })
         this.flowControl = new FlowControl(this.xterm)
@@ -267,13 +271,16 @@ export class XTermFrontend extends Frontend {
                 return false
             }
 
-            const handled = keyboardEventHandler('keydown', event)
+            // xterm calls this handler for keypress and keyup too, so pass the real
+            // event type - labelling them all as keydown makes the hotkey service
+            // match the same keystroke several times.
+            const handled = keyboardEventHandler(event.type, event)
             if (!handled) {
                 // a hotkey claimed the event and already cancelled it
                 return false
             }
 
-            if (this.hostApp.platform === Platform.Linux && isIMETextKey(event)) {
+            if (event.type === 'keydown' && this.hostApp.platform === Platform.Linux && isIMETextKey(event)) {
                 // Returning false keeps xterm from sending/cancelling keydown.
                 // The resulting keypress/input event contains either the IME
                 // commit string or the original character when IME is inactive.
@@ -550,7 +557,7 @@ export class XTermFrontend extends Frontend {
             this.detach(this.element)
         }
         super.destroy()
-        this.webGLAddon?.dispose()
+        disposeWebglAddon(this.webGLAddon)
         this.canvasAddon?.dispose()
         this.xterm.dispose()
     }
@@ -585,7 +592,22 @@ export class XTermFrontend extends Frontend {
     }
 
     focus (): void {
-        setTimeout(() => this.xterm.focus())
+        setTimeout(() => {
+            // Don't steal focus from modal dialogs (e.g. the SSH password prompt)
+            // or the tab's own overlay inputs - the deferred focus from a window
+            // focus event would otherwise land right after the user clicks into one
+            const active = document.activeElement
+            const tabHost = this.element?.parentElement
+            if (
+                active instanceof HTMLElement
+                && active !== this.xterm.textarea
+                && active.matches('input, textarea, select')
+                && ((tabHost?.contains(active) ?? false) || active.closest('ngb-modal-window') !== null)
+            ) {
+                return
+            }
+            this.xterm.focus()
+        })
     }
 
     async write (data: string): Promise<void> {
@@ -841,7 +863,7 @@ export class XTermFrontend extends Frontend {
     }
 
     private onWebGLContextLoss (): void {
-        this.webGLAddon?.dispose()
+        disposeWebglAddon(this.webGLAddon)
         this.webGLAddon = undefined
         this.pendingRendererRecovery = true
         this.recoverRenderer()

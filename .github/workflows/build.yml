@@ -31,6 +31,9 @@ jobs:
     - name: Test Config Sync
       run: yarn run test:config-sync
 
+    - name: Unit tests
+      run: yarn run test:unit
+
     - name: Build typings
       run: yarn run build:typings
 

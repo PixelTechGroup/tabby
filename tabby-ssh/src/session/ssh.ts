@@ -5,6 +5,7 @@ import * as path from 'path'
 import colors from 'ansi-colors'
 import stripAnsi from 'strip-ansi'
 import * as shellQuote from 'shell-quote'
+import { marker as _ } from '@biesbjerg/ngx-translate-extract-marker'
 import { Injector } from '@angular/core'
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap'
 import { ConfigService, FileProvidersService, NotificationsService, PromptModalComponent, LogService, Logger, TranslateService, Platform, HostAppService } from 'tabby-core'
@@ -20,6 +21,7 @@ import { X11Socket } from './x11'
 import { supportedAlgorithms } from '../algorithms'
 import { requestShellPTY, SSHShellChannelOptions } from './shellChannel'
 import * as russh from 'russh'
+import { selectNextAuthMethod, updateAuthPlanAfterFailure } from './authMethodSelection'
 
 const WINDOWS_OPENSSH_AGENT_PIPE = '\\\\.\\pipe\\openssh-ssh-agent'
 
@@ -248,12 +250,12 @@ export class SSHSession {
             }
         }
         if (!this.profile.options.auth || this.profile.options.auth === 'password') {
-            if (this.profile.options.password) {
+            if (typeof this.profile.options.password === 'string') {
                 this.allAuthMethods.push({ type: 'saved-password', password: this.profile.options.password })
             }
         }
         if (!this.profile.options.auth || this.profile.options.auth === 'keyboardInteractive') {
-            if (this.profile.options.password) {
+            if (typeof this.profile.options.password === 'string') {
                 this.allAuthMethods.push({ type: 'keyboard-interactive', savedPassword: this.profile.options.password })
             }
             this.allAuthMethods.push({ type: 'keyboard-interactive' })
@@ -270,7 +272,7 @@ export class SSHSession {
         }
 
         const storedPassword = await this.passwordStorage.loadPassword(this.profile, this.authUsername)
-        if (!storedPassword) {
+        if (storedPassword == null) {
             return
         }
 
@@ -512,12 +514,18 @@ export class SSHSession {
 
         // auth success
 
-        if (this.savedPassword) {
+        if (this.savedPassword != null) {
             this.passwordStorage.savePassword(this.profile, this.savedPassword, this.authUsername ?? undefined)
         }
 
-        for (const fw of this.profile.options.forwardedPorts) {
-            this.addPortForward(Object.assign(new ForwardedPort(), fw))
+        for (const fwConfig of this.profile.options.forwardedPorts) {
+            const fw = Object.assign(new ForwardedPort(), fwConfig)
+            this.addPortForward(fw).catch(e => {
+                this.notifications.error(
+                    this.translate.instant(_('Failed to forward port {fw}'), { fw: fw.toString() }),
+                    e.toString(),
+                )
+            })
         }
 
         this.open = true
@@ -542,7 +550,7 @@ export class SSHSession {
             socket.connect(forward.targetPort, forward.targetAddress)
             socket.on('error', e => {
                 // eslint-disable-next-line @typescript-eslint/no-base-to-string
-                this.emitServiceMessage(colors.bgRed.black(' X ') + ` Could not forward the remote connection to ${forward.targetAddress}:${forward.targetPort}: ${e}`)
+                this.logger.warn(`Could not forward the remote connection to ${forward.targetAddress}:${forward.targetPort}: ${e}`)
                 channel.close()
             })
 
@@ -588,6 +596,12 @@ export class SSHSession {
             }
 
             const channel = await this.ssh.activateChannel(newChannel)
+
+            if (!this.profile.options.agentForward) {
+                this.logger.warn('Rejecting unsolicited agent channel: agent forwarding is disabled')
+                await channel.close()
+                return
+            }
 
             const spec = await this.getAgentConnectionSpec()
             if (!spec) {
@@ -678,15 +692,21 @@ export class SSHSession {
         let remainingMethods = [...this.allAuthMethods]
         let methodsLeft = noneResult.remainingMethods
 
-        function maybeSetRemainingMethods (r: russh.AuthFailure) {
-            if (r.remainingMethods.length) {
-                methodsLeft = r.remainingMethods
+        const updateAuthPlan = (failure: russh.AuthFailure) => {
+            const plan = updateAuthPlanAfterFailure(
+                remainingMethods,
+                failure,
+                sshAuthTypeForMethod,
+                (authType): AuthMethod|null => authType === 'keyboard-interactive' ? { type: 'keyboard-interactive' } : null,
+            )
+            remainingMethods = plan.remainingMethods
+            if (plan.allowedMethods.length) {
+                methodsLeft = plan.allowedMethods
             }
         }
 
         while (true) {
-            const m = methodsLeft
-            const method = remainingMethods.find(x => m.length === 0 || m.includes(sshAuthTypeForMethod(x)))
+            const method = selectNextAuthMethod(remainingMethods, methodsLeft, sshAuthTypeForMethod)
 
             if (this.previouslyDisconnected || !method) {
                 return null
@@ -700,7 +720,7 @@ export class SSHSession {
                 if (result instanceof russh.AuthenticatedSSHClient) {
                     return result
                 }
-                maybeSetRemainingMethods(result)
+                updateAuthPlan(result)
             }
             if (method.type === 'prompt-password') {
                 const modal = this.ngbModal.open(PromptModalComponent)
@@ -708,7 +728,7 @@ export class SSHSession {
                 modal.componentInstance.password = true
                 modal.componentInstance.showRememberCheckbox = true
                 const prefilledPassword = await this.passwordStorage.loadPassword(this.profile, this.authUsername)
-                if (prefilledPassword) {
+                if (prefilledPassword != null) {
                     modal.componentInstance.value = prefilledPassword
                 }
 
@@ -722,7 +742,7 @@ export class SSHSession {
                         if (result instanceof russh.AuthenticatedSSHClient) {
                             return result
                         }
-                        maybeSetRemainingMethods(result)
+                        updateAuthPlan(result)
                     } else {
                         continue
                     }
@@ -738,7 +758,7 @@ export class SSHSession {
                     if (result instanceof russh.AuthenticatedSSHClient) {
                         return result
                     }
-                    maybeSetRemainingMethods(result)
+                    updateAuthPlan(result)
                 } catch (e) {
                     this.emitServiceMessage(colors.bgYellow.yellow.black(' ! ') + ` Failed to load private key ${method.name}: ${e}`)
                     continue
@@ -749,7 +769,7 @@ export class SSHSession {
 
                 while (true) {
                     if (state.state === 'failure') {
-                        maybeSetRemainingMethods(state)
+                        updateAuthPlan(state)
                         break
                     }
 
@@ -765,7 +785,7 @@ export class SSHSession {
                             state.prompts(),
                         )
 
-                        if (method.savedPassword) {
+                        if (method.savedPassword != null) {
                             // eslint-disable-next-line max-depth
                             for (let i = 0; i < prompt.prompts.length; i++) {
                                 // eslint-disable-next-line max-depth
@@ -798,7 +818,7 @@ export class SSHSession {
                     if (result instanceof russh.AuthenticatedSSHClient) {
                         return result
                     }
-                    maybeSetRemainingMethods(result)
+                    updateAuthPlan(result)
                 } catch (e) {
                     const identitySuffix = method.publicKey ? ` with identity ${method.publicKey.fingerprint()}` : ''
                     this.emitServiceMessage(colors.bgYellow.yellow.black(' ! ') + ` Failed to authenticate using agent${identitySuffix}: ${e}`)
@@ -824,7 +844,7 @@ export class SSHSession {
                     originatorAddress: sourceAddress ?? '127.0.0.1',
                     originatorPort: sourcePort ?? 0,
                 }).catch(err => {
-                    this.emitServiceMessage(colors.bgRed.black(' X ') + ` Remote has rejected the forwarded connection to ${targetAddress}:${targetPort} via ${fw}: ${err}`)
+                    this.logger.warn(`Remote has rejected the forwarded connection to ${targetAddress}:${targetPort} via ${fw}: ${err}`)
                     reject()
                     throw err
                 }))
@@ -832,10 +852,10 @@ export class SSHSession {
 
                 this.setupSocketChannelEvents(channel, socket, 'Local forward')
             }).then(() => {
-                this.emitServiceMessage(colors.bgGreen.black(' -> ') + ` Forwarded ${fw}`)
+                this.logger.info(`Forwarded ${fw}`)
                 this.forwardedPorts.push(fw)
             }).catch(e => {
-                this.emitServiceMessage(colors.bgRed.black(' X ') + ` Failed to forward port ${fw}: ${e}`)
+                this.logger.error(`Failed to forward port ${fw}: ${e}`)
                 throw e
             })
         }
@@ -847,10 +867,10 @@ export class SSHSession {
                 await this.ssh.forwardTCPPort(fw.host, fw.port)
             } catch (err) {
                 // eslint-disable-next-line @typescript-eslint/no-base-to-string
-                this.emitServiceMessage(colors.bgRed.black(' X ') + ` Remote rejected port forwarding for ${fw}: ${err}`)
-                return
+                this.logger.error(`Remote rejected port forwarding for ${fw}: ${err}`)
+                throw err
             }
-            this.emitServiceMessage(colors.bgGreen.black(' <- ') + ` Forwarded ${fw}`)
+            this.logger.info(`Forwarded ${fw}`)
             this.forwardedPorts.push(fw)
         }
     }
@@ -864,10 +884,10 @@ export class SSHSession {
             if (!(this.ssh instanceof russh.AuthenticatedSSHClient)) {
                 throw new Error('Cannot remove remote port forward before auth')
             }
-            this.ssh.stopForwardingTCPPort(fw.host, fw.port)
+            await this.ssh.stopForwardingTCPPort(fw.host, fw.port)
             this.forwardedPorts = this.forwardedPorts.filter(x => x !== fw)
         }
-        this.emitServiceMessage(`Stopped forwarding ${fw}`)
+        this.logger.info(`Stopped forwarding ${fw}`)
     }
 
     async destroy (): Promise<void> {
