@@ -18,7 +18,13 @@ yarn
 ```
 
 ```
-# Linux (Debian/Ubuntu here as an example)
+# Linux, Debian 13 (trixie) and newer
+sudo apt install libfontconfig-dev libsecret-1-dev libarchive-tools libnss3 libatk1.0-0t64 libatk-bridge2.0-0t64 libgdk-pixbuf-2.0-0 libgtk-3-0t64 libgbm1 cmake
+yarn
+```
+
+```
+# Linux, Ubuntu 22.04 and Debian 12 or older (pre-t64 package names)
 sudo apt install libfontconfig-dev libsecret-1-dev libarchive-tools libnss3 libatk1.0-0 libatk-bridge2.0-0 libgdk-pixbuf2.0-0 libgtk-3-0 libgbm1 cmake
 yarn
 ```
