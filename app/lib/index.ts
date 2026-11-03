@@ -12,7 +12,6 @@ process.env.TABBY_PLUGINS ??= ''
 process.env.TABBY_CONFIG_DIRECTORY ??= app.getPath('userData')
 
 process.setSourceMapsEnabled(true)
-import './sentry'
 import './lru'
 import { parseArgs } from './cli'
 import { Application } from './app'
