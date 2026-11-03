@@ -2,10 +2,10 @@
   "name": "tabby",
   "description": "A terminal for a modern age",
   "private": true,
-  "repository": "https://github.com/Eugeny/tabby",
+  "repository": "https://github.com/PixelTechGroup/tabby",
   "author": {
-    "name": "Tabby Developers",
-    "email": "e@ajenti.org"
+    "name": "PixelTech Group",
+    "email": "chris@pixeltechgroup.com"
   },
   "main": "dist/main.js",
   "version": "1.0.0-alpha.1",

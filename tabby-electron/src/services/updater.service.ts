@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core'
 import { Logger, LogService, ConfigService, UpdaterService, PlatformService, TranslateService } from 'tabby-core'
 import { ElectronService } from '../services/electron.service'
 
-const UPDATES_URL = 'https://api.github.com/repos/eugeny/tabby/releases/latest'
+const UPDATES_URL = 'https://api.github.com/repos/PixelTechGroup/tabby/releases/latest'
 
 @Injectable()
 export class ElectronUpdaterService extends UpdaterService {
