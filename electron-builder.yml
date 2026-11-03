@@ -1,5 +1,5 @@
 ---
-appId: org.tabby
+appId: com.pixeltechgroup.tabby
 productName: Tabby
 compression: normal
 npmRebuild: false
@@ -88,11 +88,6 @@ linux:
     entry:
       StartupWMClass: tabby
       MimeType: x-scheme-handler/tabby
-snap:
-  plugs:
-  - default
-  - system-files
-  - system-observe
 deb:
   depends:
   - gnome-keyring

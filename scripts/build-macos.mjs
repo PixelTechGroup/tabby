@@ -32,15 +32,14 @@ builder({
             notarize: !!process.env.APPLE_TEAM_ID,
         },
         npmRebuild: process.env.ARCH !== 'arm64',
-        publish: process.env.KEYGEN_TOKEN ? [
-            vars.keygenConfig,
-            {
-                provider: 'github',
-                channel: `latest-${process.env.ARCH}`,
-            },
-        ] : undefined,
+        publish: [{
+            provider: 'github',
+            owner: 'PixelTechGroup',
+            repo: 'tabby',
+            channel: `latest-${process.env.ARCH}`,
+        }],
     },
-    publish: (process.env.KEYGEN_TOKEN && isTag) ? 'always' : 'never',
+    publish: (process.env.GITHUB_TOKEN && isTag) ? 'always' : 'never',
 }).catch(e => {
     console.error(e)
     process.exit(1)
