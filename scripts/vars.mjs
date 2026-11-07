@@ -10,12 +10,22 @@ const __dirname = url.fileURLToPath(new URL('.', import.meta.url))
 
 const electronInfo = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../node_modules/electron/package.json')))
 
-export let version = childProcess.execSync('git describe --tags', { encoding:'utf-8' })
-version = version.substring(1).trim()
-version = version.replace('-', '-c')
+const versionOverride = process.env.TABBY_VERSION?.trim()
+export let version
 
-if (version.includes('-c')) {
-    version = semver.inc(version, 'prepatch').replace('-0', `-nightly.${process.env.REV ?? 0}`)
+if (versionOverride) {
+    if (!semver.valid(versionOverride)) {
+        throw new Error(`Invalid TABBY_VERSION: ${versionOverride}`)
+    }
+    version = versionOverride
+} else {
+    version = childProcess.execSync('git describe --tags', { encoding:'utf-8' })
+    version = version.substring(1).trim()
+    version = version.replace('-', '-c')
+
+    if (version.includes('-c')) {
+        version = semver.inc(version, 'prepatch').replace('-0', `-nightly.${process.env.REV ?? 0}`)
+    }
 }
 
 export const builtinPlugins = [

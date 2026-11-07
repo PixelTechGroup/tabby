@@ -1,7 +1,6 @@
 import * as fs from 'mz/fs'
 import * as crypto from 'crypto'
 import * as os from 'os'
-import * as path from 'path'
 import colors from 'ansi-colors'
 import stripAnsi from 'strip-ansi'
 import * as shellQuote from 'shell-quote'
@@ -22,6 +21,7 @@ import { supportedAlgorithms } from '../algorithms'
 import { requestShellPTY, SSHShellChannelOptions } from './shellChannel'
 import * as russh from 'russh'
 import { selectNextAuthMethod, updateAuthPlanAfterFailure } from './authMethodSelection'
+import { detectBitwardenAgentSocket } from './bitwardenAgent'
 
 const WINDOWS_OPENSSH_AGENT_PIPE = '\\\\.\\pipe\\openssh-ssh-agent'
 
@@ -339,17 +339,16 @@ export class SSHSession {
             let agentSocketPath = configuredPath
 
             // Desktop sessions may inherit a stale or unrelated SSH_AUTH_SOCK.
-            // Bitwarden's Linux agent uses a stable per-user socket, so prefer
-            // it when no explicit override is configured.
+            // Prefer Bitwarden's stable per-user sockets when no explicit
+            // override is configured, including sandboxed package locations.
             if (!agentSocketPath && this.hostApp.platform === Platform.Linux) {
-                const bitwardenSocketPath = path.join(os.homedir(), '.bitwarden-ssh-agent.sock')
-                try {
-                    if ((await fs.stat(bitwardenSocketPath)).isSocket()) {
-                        agentSocketPath = bitwardenSocketPath
-                        this.emitServiceMessage('Using detected Bitwarden SSH agent')
-                    }
-                } catch {
-                    // Bitwarden SSH agent is not enabled on this machine.
+                const bitwardenSocketPath = await detectBitwardenAgentSocket(
+                    os.homedir(),
+                    async socketPath => (await fs.stat(socketPath)).isSocket(),
+                )
+                if (bitwardenSocketPath) {
+                    agentSocketPath = bitwardenSocketPath
+                    this.emitServiceMessage('Using detected Bitwarden SSH agent')
                 }
             }
 
