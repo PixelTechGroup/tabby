@@ -742,11 +742,6 @@ msgstr "Wysig plaaslik"
 msgid "Enable"
 msgstr "Aktiveer"
 
-#: locale/tmp-html/tabby-core/src/components/welcomeTab.component.html:32
-#: locale/tmp-html/tabby-settings/src/components/settingsTab.component.html:66
-msgid "Enable analytics"
-msgstr "Aktiveer analise"
-
 #: locale/tmp-html/tabby-settings/src/components/settingsTab.component.html:87
 msgid "Enable animations"
 msgstr "Aktiveer animasies"
@@ -990,14 +985,6 @@ msgstr "Groep"
 #: locale/tmp-html/tabby-settings/src/components/windowSettingsTab.component.html:201
 msgid "Hacks"
 msgstr "Kappe"
-
-#: locale/tmp-html/tabby-core/src/components/welcomeTab.component.html:33
-msgid "Help track the number of Tabby installs across the world!"
-msgstr "Help om die aantal Tabby-installasies regoor die wêreld te volg!"
-
-#: locale/tmp-html/tabby-settings/src/components/settingsTab.component.html:50
-msgid "Help translate Tabby"
-msgstr "Help om Tabby te vertaal"
 
 #: tabby-terminal/src/components/streamProcessingSettings.component.ts:32
 #: tabby-terminal/src/components/streamProcessingSettings.component.ts:45
@@ -2459,10 +2446,6 @@ msgstr "Waarsku wanneer aktiewe verbindings gesluit word"
 #: locale/tmp-html/tabby-ssh/src/components/hostKeyPromptModal.component.html:6
 msgid "Warning: remote host's key has suddenly changed!"
 msgstr "Waarskuwing: afgeleë gasheer se sleutel het skielik verander!"
-
-#: locale/tmp-html/tabby-settings/src/components/settingsTab.component.html:67
-msgid "We're only tracking your Tabby and OS versions."
-msgstr "Ons volg net jou Tabby- en OS-weergawes."
 
 #: tabby-core/src/components/welcomeTab.component.ts:25
 msgid "Welcome"

@@ -742,11 +742,6 @@ msgstr ""
 msgid "Enable"
 msgstr "Aktivér"
 
-#: locale/tmp-html/tabby-core/src/components/welcomeTab.component.html:32
-#: locale/tmp-html/tabby-settings/src/components/settingsTab.component.html:66
-msgid "Enable analytics"
-msgstr ""
-
 #: locale/tmp-html/tabby-settings/src/components/settingsTab.component.html:87
 msgid "Enable animations"
 msgstr ""
@@ -989,14 +984,6 @@ msgstr "Gruppe"
 
 #: locale/tmp-html/tabby-settings/src/components/windowSettingsTab.component.html:201
 msgid "Hacks"
-msgstr ""
-
-#: locale/tmp-html/tabby-core/src/components/welcomeTab.component.html:33
-msgid "Help track the number of Tabby installs across the world!"
-msgstr ""
-
-#: locale/tmp-html/tabby-settings/src/components/settingsTab.component.html:50
-msgid "Help translate Tabby"
 msgstr ""
 
 #: tabby-terminal/src/components/streamProcessingSettings.component.ts:32
@@ -2459,10 +2446,6 @@ msgstr "Advar ved lukning af aktive forbindelser"
 #: locale/tmp-html/tabby-ssh/src/components/hostKeyPromptModal.component.html:6
 msgid "Warning: remote host's key has suddenly changed!"
 msgstr "Advarsel: Den eksterne værtsnøgle er pludselig ændret!"
-
-#: locale/tmp-html/tabby-settings/src/components/settingsTab.component.html:67
-msgid "We're only tracking your Tabby and OS versions."
-msgstr "Vi indsamler kun dine Tabby og OS versioner."
 
 #: tabby-core/src/components/welcomeTab.component.ts:25
 msgid "Welcome"

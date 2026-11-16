@@ -742,11 +742,6 @@ msgstr "로컬 편집"
 msgid "Enable"
 msgstr "활성화"
 
-#: locale/tmp-html/tabby-core/src/components/welcomeTab.component.html:32
-#: locale/tmp-html/tabby-settings/src/components/settingsTab.component.html:66
-msgid "Enable analytics"
-msgstr "통계 전송 허용"
-
 #: locale/tmp-html/tabby-settings/src/components/settingsTab.component.html:87
 msgid "Enable animations"
 msgstr "애니메이션 활성화"
@@ -990,14 +985,6 @@ msgstr "그룹"
 #: locale/tmp-html/tabby-settings/src/components/windowSettingsTab.component.html:201
 msgid "Hacks"
 msgstr "핵"
-
-#: locale/tmp-html/tabby-core/src/components/welcomeTab.component.html:33
-msgid "Help track the number of Tabby installs across the world!"
-msgstr "전 세계적으로 Tabby 가 설치되어 어떻게 사용하는지 추적을 도와주세요!"
-
-#: locale/tmp-html/tabby-settings/src/components/settingsTab.component.html:50
-msgid "Help translate Tabby"
-msgstr "Tabby 번역 돕기"
 
 #: tabby-terminal/src/components/streamProcessingSettings.component.ts:32
 #: tabby-terminal/src/components/streamProcessingSettings.component.ts:45
@@ -2459,10 +2446,6 @@ msgstr "활성 연결을 종료할 때 경고"
 #: locale/tmp-html/tabby-ssh/src/components/hostKeyPromptModal.component.html:6
 msgid "Warning: remote host's key has suddenly changed!"
 msgstr "경고: 원격 호스트의 키가 갑자기 변경되었습니다!"
-
-#: locale/tmp-html/tabby-settings/src/components/settingsTab.component.html:67
-msgid "We're only tracking your Tabby and OS versions."
-msgstr "귀하의 Tabby 및 OS 버전만 추적합니다."
 
 #: tabby-core/src/components/welcomeTab.component.ts:25
 msgid "Welcome"

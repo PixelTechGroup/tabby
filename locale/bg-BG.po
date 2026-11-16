@@ -742,11 +742,6 @@ msgstr "Редактирай локално"
 msgid "Enable"
 msgstr "Включи"
 
-#: locale/tmp-html/tabby-core/src/components/welcomeTab.component.html:32
-#: locale/tmp-html/tabby-settings/src/components/settingsTab.component.html:66
-msgid "Enable analytics"
-msgstr "Включи събиране на статистики"
-
 #: locale/tmp-html/tabby-settings/src/components/settingsTab.component.html:87
 msgid "Enable animations"
 msgstr "Активиране на анимации"
@@ -990,14 +985,6 @@ msgstr "Група"
 #: locale/tmp-html/tabby-settings/src/components/windowSettingsTab.component.html:201
 msgid "Hacks"
 msgstr "Хакове"
-
-#: locale/tmp-html/tabby-core/src/components/welcomeTab.component.html:33
-msgid "Help track the number of Tabby installs across the world!"
-msgstr "Помогнете за проследяване броя на инсталациите на Tabby по света!"
-
-#: locale/tmp-html/tabby-settings/src/components/settingsTab.component.html:50
-msgid "Help translate Tabby"
-msgstr "Помощ за превод на Tabby"
 
 #: tabby-terminal/src/components/streamProcessingSettings.component.ts:32
 #: tabby-terminal/src/components/streamProcessingSettings.component.ts:45
@@ -2459,10 +2446,6 @@ msgstr "Предупреждавай при затваряне на активн
 #: locale/tmp-html/tabby-ssh/src/components/hostKeyPromptModal.component.html:6
 msgid "Warning: remote host's key has suddenly changed!"
 msgstr "Предупреждение: ключът на отдалечения хост внезапно се промени!"
-
-#: locale/tmp-html/tabby-settings/src/components/settingsTab.component.html:67
-msgid "We're only tracking your Tabby and OS versions."
-msgstr "Ние проследяваме само версиите на Tabby и на ОС."
 
 #: tabby-core/src/components/welcomeTab.component.ts:25
 msgid "Welcome"

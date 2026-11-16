@@ -743,11 +743,6 @@ msgstr "Yerel olarak düzenle"
 msgid "Enable"
 msgstr "Etkinleştir"
 
-#: locale/tmp-html/tabby-core/src/components/welcomeTab.component.html:32
-#: locale/tmp-html/tabby-settings/src/components/settingsTab.component.html:66
-msgid "Enable analytics"
-msgstr "Analizleri aktifleştir"
-
 #: locale/tmp-html/tabby-settings/src/components/settingsTab.component.html:87
 msgid "Enable animations"
 msgstr "Animasyonları etkinleştir"
@@ -991,14 +986,6 @@ msgstr "Grup"
 #: locale/tmp-html/tabby-settings/src/components/windowSettingsTab.component.html:201
 msgid "Hacks"
 msgstr "Özel bilgiler"
-
-#: locale/tmp-html/tabby-core/src/components/welcomeTab.component.html:33
-msgid "Help track the number of Tabby installs across the world!"
-msgstr "Dünya çapında Tabby yüklemelerinin sayısını takip etmeye yardımcı olun!"
-
-#: locale/tmp-html/tabby-settings/src/components/settingsTab.component.html:50
-msgid "Help translate Tabby"
-msgstr "Çeviriye yardım et"
 
 #: tabby-terminal/src/components/streamProcessingSettings.component.ts:32
 #: tabby-terminal/src/components/streamProcessingSettings.component.ts:45
@@ -2460,10 +2447,6 @@ msgstr "Aktif bağlantıları kapatırken uyar"
 #: locale/tmp-html/tabby-ssh/src/components/hostKeyPromptModal.component.html:6
 msgid "Warning: remote host's key has suddenly changed!"
 msgstr "Uyarı: Uzak ana bilgisayarın anahtarı aniden değişti!"
-
-#: locale/tmp-html/tabby-settings/src/components/settingsTab.component.html:67
-msgid "We're only tracking your Tabby and OS versions."
-msgstr "Yalnızca Tabby ve İşletim Sistemi sürümlerinizi izliyoruz."
 
 #: tabby-core/src/components/welcomeTab.component.ts:25
 msgid "Welcome"
