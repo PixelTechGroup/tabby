@@ -39,6 +39,9 @@ upstream [Tabby](https://github.com/Eugeny/tabby) release the build is based on.
 
 ### Fixed
 
+- **Update check with no published release.** "Check for updates" no longer
+  hangs (button stuck disabled and spinning) when the repository has no release
+  yet or GitHub returns an error; it now reports no update and logs the reason.
 - **Bitwarden SSH agent detection for sandboxed installs on Linux.** The
   Flatpak (`~/.var/app/com.bitwarden.desktop/data/`) and Snap
   (`~/snap/bitwarden/current/`) socket locations are now checked in addition to
@@ -49,6 +52,8 @@ upstream [Tabby](https://github.com/Eugeny/tabby) release the build is based on.
 
 ### Removed
 
+- Translation strings for the removed analytics and "Help translate" UI, and
+  the upstream all-contributors config.
 - Upstream-only files: funding config, API docs site and its deploy workflow,
   Snap packaging, `.vscode` launch config and `.well-known`.
 

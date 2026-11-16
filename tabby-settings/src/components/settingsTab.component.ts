@@ -121,8 +121,13 @@ export class SettingsTabComponent extends BaseTabComponent {
 
     async checkForUpdates () {
         this.checkingForUpdate = true
-        this.updateAvailable = await this.updater.check()
-        this.checkingForUpdate = false
+        try {
+            this.updateAvailable = await this.updater.check()
+        } catch (e) {
+            console.error('Update check failed', e)
+        } finally {
+            this.checkingForUpdate = false
+        }
     }
 
     showReleaseNotes () {

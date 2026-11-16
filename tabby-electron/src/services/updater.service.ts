@@ -101,8 +101,20 @@ export class ElectronUpdaterService extends UpdaterService {
         } else {
             this.logger.debug('Checking for updates through fallback method.')
             const response = await fetch(UPDATES_URL)
+            if (response.status === 404) {
+                // No published (non-draft, non-prerelease) release exists yet
+                this.logger.info('No releases published')
+                return false
+            }
+            if (!response.ok) {
+                throw new Error(`Update check failed: ${response.status} ${response.statusText}`)
+            }
             const data = await response.json()
-            const version = data.tag_name.substring(1)
+            const version = String(data.tag_name ?? '').replace(/^v/, '')
+            if (!version) {
+                this.logger.info('Latest release has no tag')
+                return false
+            }
             if (this.electron.app.getVersion() !== version) {
                 this.logger.info('Update available')
                 this.updateURL = data.html_url
