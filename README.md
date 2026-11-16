@@ -66,7 +66,7 @@ Notes:
 Agent authentication resolves the agent socket in this order:
 
 1. **SSH agent socket path**, set in **Settings → SSH** (macOS and Linux). Leave empty for auto-detect.
-2. On Linux, the **Bitwarden SSH agent** at `~/.bitwarden-ssh-agent.sock`, when it exists.
+2. On Linux, the **Bitwarden SSH agent**, when its socket exists. The Flatpak and Snap install locations are checked, then `~/.bitwarden-ssh-agent.sock`.
 3. The `SSH_AUTH_SOCK` environment variable.
 
 This avoids failures where a desktop session exports a stale or unrelated `SSH_AUTH_SOCK`, or where a GUI launcher does not pass it on at all.

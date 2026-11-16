@@ -7,6 +7,11 @@ upstream [Tabby](https://github.com/Eugeny/tabby) release the build is based on.
 
 ## [Unreleased]
 
+### Added
+
+- `TABBY_VERSION` environment variable overrides the version computed from
+  `git describe` when building packages (must be valid semver).
+
 ### Changed
 
 - Rebranded packaging metadata: app ID is now `com.pixeltechgroup.tabby`, and
@@ -34,6 +39,10 @@ upstream [Tabby](https://github.com/Eugeny/tabby) release the build is based on.
 
 ### Fixed
 
+- **Bitwarden SSH agent detection for sandboxed installs on Linux.** The
+  Flatpak (`~/.var/app/com.bitwarden.desktop/data/`) and Snap
+  (`~/snap/bitwarden/current/`) socket locations are now checked in addition to
+  `~/.bitwarden-ssh-agent.sock`.
 - Release builds from tags containing a hyphen, such as `v1.0.238-pixeltech.0`,
   were versioned as `1.0.239-nightly.N`. Only builds past a tag are now treated
   as nightlies.
