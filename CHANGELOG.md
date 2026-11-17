@@ -39,6 +39,16 @@ upstream [Tabby](https://github.com/Eugeny/tabby) release the build is based on.
 
 ### Fixed
 
+- **Stale Bitwarden SSH agent socket selected on Linux.** Agent discovery treated
+  any existing socket file as a running agent, so an obsolete Flatpak socket
+  (`~/.var/app/com.bitwarden.desktop/data/.bitwarden-ssh-agent.sock`) could
+  shadow the working native agent and fail with `ECONNREFUSED`. Discovery now
+  probes each candidate with a bounded connection attempt that sends no agent
+  requests, prefers the native socket, and prefers a working `SSH_AUTH_SOCK`
+  before falling back to Bitwarden. Auto-detection reports the Bitwarden socket
+  path it selected, and agent authentication failures now name the endpoint that
+  was tried. A successful probe means the socket accepts a connection, not that
+  the agent will authenticate.
 - **Update check with no published release.** "Check for updates" no longer
   hangs (button stuck disabled and spinning) when the repository has no release
   yet or GitHub returns an error; it now reports no update and logs the reason.

@@ -21,7 +21,7 @@ import { supportedAlgorithms } from '../algorithms'
 import { requestShellPTY, SSHShellChannelOptions } from './shellChannel'
 import * as russh from 'russh'
 import { selectNextAuthMethod, updateAuthPlanAfterFailure } from './authMethodSelection'
-import { detectBitwardenAgentSocket } from './bitwardenAgent'
+import { describeAgentAuthFailure, probeAgentSocket, selectAgentSocket } from './bitwardenAgent'
 
 const WINDOWS_OPENSSH_AGENT_PIPE = '\\\\.\\pipe\\openssh-ssh-agent'
 
@@ -334,29 +334,26 @@ export class SSHSession {
                 }
             }
         } else {
-            const configuredPath = (this.config.store.ssh.agentPath ?? '').trim()
-            const envPath = (process.env.SSH_AUTH_SOCK ?? '').trim()
-            let agentSocketPath = configuredPath
+            // Explicit configuration wins, then an SSH_AUTH_SOCK that actually
+            // accepts connections, then a live Bitwarden agent (native before
+            // sandboxed installs). A socket file whose listener is gone is
+            // treated as absent rather than selected and failing later.
+            const selectedAgent = await selectAgentSocket({
+                configuredPath: (this.config.store.ssh.agentPath ?? '').trim(),
+                envPath: (process.env.SSH_AUTH_SOCK ?? '').trim(),
+                homeDir: os.homedir(),
+                isLinux: this.hostApp.platform === Platform.Linux,
+            }, probeAgentSocket)
 
-            // Desktop sessions may inherit a stale or unrelated SSH_AUTH_SOCK.
-            // Prefer Bitwarden's stable per-user sockets when no explicit
-            // override is configured, including sandboxed package locations.
-            if (!agentSocketPath && this.hostApp.platform === Platform.Linux) {
-                const bitwardenSocketPath = await detectBitwardenAgentSocket(
-                    os.homedir(),
-                    async socketPath => (await fs.stat(socketPath)).isSocket(),
-                )
-                if (bitwardenSocketPath) {
-                    agentSocketPath = bitwardenSocketPath
-                    this.emitServiceMessage('Using detected Bitwarden SSH agent')
-                }
-            }
-
-            agentSocketPath ||= envPath
-
-            if (!agentSocketPath) {
+            if (!selectedAgent) {
                 this.emitServiceMessage(colors.bgYellow.yellow.black(' ! ') + ' Agent auth selected, but SSH_AUTH_SOCK is not set')
                 return null
+            }
+
+            const agentSocketPath = selectedAgent.path
+
+            if (selectedAgent.source === 'bitwarden') {
+                this.emitServiceMessage(`Using detected Bitwarden SSH agent at ${agentSocketPath}`)
             }
 
             // Skip filesystem checks for abstract namespace sockets.
@@ -819,8 +816,7 @@ export class SSHSession {
                     }
                     updateAuthPlan(result)
                 } catch (e) {
-                    const identitySuffix = method.publicKey ? ` with identity ${method.publicKey.fingerprint()}` : ''
-                    this.emitServiceMessage(colors.bgYellow.yellow.black(' ! ') + ` Failed to authenticate using agent${identitySuffix}: ${e}`)
+                    this.emitServiceMessage(colors.bgYellow.yellow.black(' ! ') + ` ${describeAgentAuthFailure(method, e, method.publicKey?.fingerprint())}`)
                     continue
                 }
             }

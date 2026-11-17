@@ -66,10 +66,11 @@ Notes:
 Agent authentication resolves the agent socket in this order:
 
 1. **SSH agent socket path**, set in **Settings → SSH** (macOS and Linux). Leave empty for auto-detect.
-2. On Linux, the **Bitwarden SSH agent**, when its socket exists. The Flatpak and Snap install locations are checked, then `~/.bitwarden-ssh-agent.sock`.
-3. The `SSH_AUTH_SOCK` environment variable.
+2. The `SSH_AUTH_SOCK` environment variable, when that socket accepts connections.
+3. On Linux, the **Bitwarden SSH agent**, when its agent is running. The native `~/.bitwarden-ssh-agent.sock` is checked first, then the Flatpak and Snap install locations.
+4. The original `SSH_AUTH_SOCK` when it did not accept a connection, if there is no working alternative. This is kept only so agent authentication failures name the endpoint that was tried; it is never preferred over a live agent.
 
-This avoids failures where a desktop session exports a stale or unrelated `SSH_AUTH_SOCK`, or where a GUI launcher does not pass it on at all.
+A socket file left behind by an agent that has exited is ignored, so a stale `SSH_AUTH_SOCK` or an old Bitwarden install cannot shadow a working agent. Detection also covers GUI launchers that do not pass `SSH_AUTH_SOCK` on at all. Probing only checks that a socket accepts a connection: it sends no agent requests and does not prove that authentication will succeed, which the SSH handshake still decides. When auto-detection selects a Bitwarden agent, the session log reports the socket path that was used.
 
 # Features inherited from Tabby
 
