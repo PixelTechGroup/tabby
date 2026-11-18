@@ -120,16 +120,15 @@ export async function selectAgentSocket (
         }
     }
 
-    // Never override an agent the session environment advertises as working: it
-    // may be gnome-keyring, gpg-agent or a wrapper, and it is the agent OpenSSH
-    // itself would use.
-    if (candidates.envPath && await isUsable(candidates.envPath)) {
-        return {
-            path: candidates.envPath,
-            source: 'env',
-        }
-    }
-
+    // Prefer a live Bitwarden agent over whatever the session environment
+    // happens to export. SSH_AUTH_SOCK being connectable only means some agent
+    // is listening - on Linux desktops it is routinely gnome-keyring, gpg-agent
+    // or another wrapper that answers but holds a different, and usually
+    // smaller, set of identities than Bitwarden. Picking it anyway makes every
+    // key that only lives in Bitwarden fail with "all keys offered were
+    // rejected" while keys that happen to exist in both agents keep working,
+    // which is confusing to diagnose. Bitwarden is the agent the user asked for,
+    // so it wins whenever it is actually reachable.
     if (candidates.isLinux) {
         const bitwardenSocketPath = await detectBitwardenAgentSocket(candidates.homeDir, isUsable)
         if (bitwardenSocketPath) {
@@ -137,6 +136,13 @@ export async function selectAgentSocket (
                 path: bitwardenSocketPath,
                 source: 'bitwarden',
             }
+        }
+    }
+
+    if (candidates.envPath && await isUsable(candidates.envPath)) {
+        return {
+            path: candidates.envPath,
+            source: 'env',
         }
     }
 

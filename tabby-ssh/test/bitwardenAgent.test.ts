@@ -157,7 +157,11 @@ describe('SSH agent socket selection', () => {
         assert.deepEqual(probed, [])
     })
 
-    it('prefers a working SSH_AUTH_SOCK over a live Bitwarden agent', async () => {
+    it('prefers a live Bitwarden agent over a working SSH_AUTH_SOCK', async () => {
+        // SSH_AUTH_SOCK being connectable only means some agent is listening -
+        // it is routinely gnome-keyring or another wrapper holding a different,
+        // usually smaller, set of identities than Bitwarden. Bitwarden must win
+        // whenever it is actually reachable, and env is never even probed.
         const probed: string[] = []
         const selected = await selectAgentSocket(candidates({ envPath: ENV_SOCKET }), async socketPath => {
             probed.push(socketPath)
@@ -165,10 +169,10 @@ describe('SSH agent socket selection', () => {
         })
 
         assert.deepEqual(selected, {
-            path: ENV_SOCKET,
-            source: 'env',
+            path: NATIVE_SOCKET,
+            source: 'bitwarden',
         })
-        assert.deepEqual(probed, [ENV_SOCKET])
+        assert.deepEqual(probed, [NATIVE_SOCKET])
     })
 
     it('falls back to Bitwarden when SSH_AUTH_SOCK is stale', async () => {
@@ -227,26 +231,26 @@ describe('SSH agent socket selection', () => {
     })
 
     it('does not cache the selection between connections', async () => {
-        let envIsUsable = false
+        let bitwardenIsUsable = false
         const probe: Probe = async socketPath => {
-            if (socketPath === ENV_SOCKET) {
-                return envIsUsable
+            if (socketPath === NATIVE_SOCKET) {
+                return bitwardenIsUsable
             }
-            return socketPath === NATIVE_SOCKET
+            return socketPath === ENV_SOCKET
         }
-
-        assert.deepEqual(await selectAgentSocket(candidates({ envPath: ENV_SOCKET }), probe), {
-            path: NATIVE_SOCKET,
-            source: 'bitwarden',
-        })
-
-        // The desktop session now exports a working agent - the next connection
-        // must pick it up even though the Bitwarden agent is still running.
-        envIsUsable = true
 
         assert.deepEqual(await selectAgentSocket(candidates({ envPath: ENV_SOCKET }), probe), {
             path: ENV_SOCKET,
             source: 'env',
+        })
+
+        // Bitwarden starts up - the next connection must prefer it over the
+        // environment socket that was already working, not keep using env.
+        bitwardenIsUsable = true
+
+        assert.deepEqual(await selectAgentSocket(candidates({ envPath: ENV_SOCKET }), probe), {
+            path: NATIVE_SOCKET,
+            source: 'bitwarden',
         })
     })
 })
