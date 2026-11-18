@@ -1,19 +1,52 @@
 ---
-name: "tagged-release"
+name: tagged-release
+
+# Release preparation is manual and deliberate. This workflow never publishes
+# a release, never uploads or overwrites assets, and never creates or modifies
+# tags. It only validates a release tag before a human prepares the release
+# through the GitHub CLI or web UI.
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to validate (e.g. v1.0.238-pixeltech.3)'
+        required: true
+        type: string
+      ref:
+        description: 'Expected target commit SHA (optional)'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
 
 jobs:
-  tagged-release:
-    name: "Tagged Release"
-    runs-on: "ubuntu-latest"
-
+  validate-tag:
+    name: Validate release tag
+    runs-on: ubuntu-latest
     steps:
-      - uses: "marvinpinto/action-automatic-releases@latest"
+      - name: Checkout repository and tags
+        uses: actions/checkout@v4
         with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          prerelease: false
-          draft: true
+          fetch-depth: 0
+
+      - name: Verify tag exists, is annotated, and targets the expected commit
+        run: |
+          set -euo pipefail
+          tag="${{ inputs.tag }}"
+          git rev-parse -q --verify "refs/tags/${tag}" >/dev/null || { echo "::error::tag ${tag} not found"; exit 1; }
+          test "$(git cat-file -t "${tag}")" = "tag" || { echo "::error::${tag} is not an annotated tag"; exit 1; }
+          target="$(git rev-list -n1 "${tag}")"
+          echo "::notice::${tag} -> ${target}"
+          if [ -n "${{ inputs.ref }}" ]; then
+            test "${target}" = "${{ inputs.ref }}" || { echo "::error::tag target ${target} does not match expected ${inputs.ref}"; exit 1; }
+          fi
+
+      - name: Show manual release preparation steps
+        run: |
+          echo "Release preparation is manual. After validation, create a draft release with:"
+          echo "  gh release create \"${{ inputs.tag }}\" --draft --title \"PixelTech Tabby ${{ inputs.tag }}\" --notes-file RELEASE-NOTES.md <assets...>"
+          echo "Then publish only after explicit approval with:"
+          echo "  gh release edit \"${{ inputs.tag }}\" --draft=false"
