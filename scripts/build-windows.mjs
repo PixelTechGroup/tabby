@@ -4,7 +4,6 @@ import { build as builder } from 'electron-builder'
 import * as vars from './vars.mjs'
 import { execSync } from 'child_process'
 
-const isTag = (process.env.GITHUB_REF || process.env.BUILD_SOURCEBRANCH || '').startsWith('refs/tags/')
 const keypair = process.env.SM_KEYPAIR_ALIAS
 
 process.env.ARCH = process.env.ARCH || process.arch
@@ -59,7 +58,7 @@ builder({
         },
     },
 
-    publish: (process.env.GITHUB_TOKEN && isTag) ? 'always' : 'never',
+    publish: 'never',
 }).catch(e => {
     console.error(e)
     process.exit(1)

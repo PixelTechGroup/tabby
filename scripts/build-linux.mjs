@@ -3,8 +3,6 @@
 import { build as builder } from 'electron-builder'
 import * as vars from './vars.mjs'
 
-const isTag = (process.env.GITHUB_REF || '').startsWith('refs/tags/')
-
 process.env.ARCH = (process.env.ARCH || process.arch) === 'arm' ? 'armv7l' : process.env.ARCH || process.arch
 
 builder({
@@ -24,7 +22,7 @@ builder({
             channel: `latest-${process.env.ARCH}`,
         }],
     },
-    publish: (process.env.GITHUB_TOKEN && isTag) ? 'always' : 'never',
+    publish: 'never',
 }).catch(e => {
     console.error(e)
     process.exit(1)

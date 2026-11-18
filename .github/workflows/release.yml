@@ -31,22 +31,56 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Verify tag exists, is annotated, and targets the expected commit
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          EXPECTED_SHA: ${{ inputs.ref }}
         run: |
           set -euo pipefail
-          tag="${{ inputs.tag }}"
-          git rev-parse -q --verify "refs/tags/${tag}" >/dev/null || { echo "::error::tag ${tag} not found"; exit 1; }
-          test "$(git cat-file -t "${tag}")" = "tag" || { echo "::error::${tag} is not an annotated tag"; exit 1; }
-          target="$(git rev-list -n1 "${tag}")"
-          echo "::notice::${tag} -> ${target}"
-          if [ -n "${{ inputs.ref }}" ]; then
-            test "${target}" = "${{ inputs.ref }}" || { echo "::error::tag target ${target} does not match expected ${inputs.ref}"; exit 1; }
+
+          tag="${RELEASE_TAG}"
+          expected_sha="${EXPECTED_SHA}"
+
+          # Reject malformed or hostile tag names before they ever reach Git.
+          # Allowed: v<major>.<minor>.<patch> with an optional suffix
+          # (e.g. v1.0.238-pixeltech.3).
+          if ! [[ "${tag}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.+-]+)?$ ]]; then
+              printf '::error::invalid tag name: %s\n' "${tag}"
+              exit 1
+          fi
+
+          # The expected commit must be a full 40-character hex SHA-1.
+          if [[ -n "${expected_sha}" ]] && ! [[ "${expected_sha}" =~ ^[0-9a-f]{40}$ ]]; then
+              printf '::error::invalid expected commit SHA: %s\n' "${expected_sha}"
+              exit 1
+          fi
+
+          # Resolve only the fully qualified tag ref.
+          if ! git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+              printf '::error::tag %s not found\n' "${tag}"
+              exit 1
+          fi
+
+          if [[ "$(git cat-file -t "refs/tags/${tag}")" != 'tag' ]]; then
+              printf '::error::%s is not an annotated tag\n' "${tag}"
+              exit 1
+          fi
+
+          target="$(git rev-list -n1 "refs/tags/${tag}")"
+          printf '::notice::%s -> %s\n' "${tag}" "${target}"
+
+          if [[ -n "${expected_sha}" ]] && [[ "${target}" != "${expected_sha}" ]]; then
+              printf '::error::tag target %s does not match expected %s\n' "${target}" "${expected_sha}"
+              exit 1
           fi
 
       - name: Show manual release preparation steps
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
         run: |
-          echo "Release preparation is manual. After validation, create a draft release with:"
-          echo "  gh release create \"${{ inputs.tag }}\" --draft --title \"PixelTech Tabby ${{ inputs.tag }}\" --notes-file RELEASE-NOTES.md <assets...>"
-          echo "Then publish only after explicit approval with:"
-          echo "  gh release edit \"${{ inputs.tag }}\" --draft=false"
+          printf '%s\n' 'Release preparation is manual. After validation, create a draft release with:'
+          printf '  %s\n' "gh release create \"${RELEASE_TAG}\" --draft --title \"PixelTech Tabby ${RELEASE_TAG}\" --notes-file RELEASE-NOTES.md <assets...>"
+          printf '%s\n' 'Then publish only after explicit approval with:'
+          printf '  %s\n' "gh release edit \"${RELEASE_TAG}\" --draft=false"

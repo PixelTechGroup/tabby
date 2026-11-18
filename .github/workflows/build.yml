@@ -7,14 +7,12 @@ name: Package-Build
 #   - Linux x64
 #   - Windows x64
 #   - macOS arm64 (Apple Silicon)
-#   - macOS x64 (Intel)
-# Build logic for other architectures (Linux arm64/arm, Windows arm64) is
-# retained below but is not part of the supported internal set.
 #
 # Signing policy: internal builds are unsigned by default. macOS is unsigned
 # and unnotarized, Windows is unsigned, and Linux packages are unsigned.
 # Signing can be re-enabled per run with the "sign" input via the existing
 # electron-builder signing tooling; no signing source code has been removed.
+# Notarization is disabled unconditionally for internal PixelTech builds.
 
 on:
   workflow_dispatch:
@@ -30,7 +28,7 @@ on:
           - windows
           - all
       sign:
-        description: 'Sign/notarize the build (requires signing secrets). Default off: macOS unsigned+unnotarized, Windows unsigned, Linux unsigned.'
+        description: 'Sign the build (requires signing secrets). Default off: macOS unsigned, Windows unsigned, Linux unsigned. Notarization is always disabled.'
         required: false
         type: boolean
         default: false
@@ -62,17 +60,18 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
+        persist-credentials: false
 
     - name: Installing Node
       uses: actions/setup-node@v4.4.0
       with:
-        node-version: 22
+        node-version: 22.22.3
 
     - run: rustup target add ${{matrix.rust_triple}}
 
     - name: Install deps
       run: |
-        yarn --network-timeout 1000000
+        yarn install --frozen-lockfile --network-timeout 1000000
       env:
         ARCH: ${{matrix.arch}}
 
@@ -96,9 +95,6 @@ jobs:
         ARCH: ${{matrix.arch}}
         CSC_LINK: ${{ secrets.CSC_LINK }}
         CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        APPSTORE_USERNAME: ${{ secrets.APPSTORE_USERNAME }}
-        APPSTORE_PASSWORD: ${{ secrets.APPSTORE_PASSWORD }}
         USE_HARD_LINKS: false
         # DEBUG: electron-builder,electron-builder:*
 
@@ -122,12 +118,14 @@ jobs:
       with:
         name: macOS .dmg (${{matrix.arch}})
         path: artifact-dmg
+        if-no-files-found: error
 
     - uses: actions/upload-artifact@v4
       name: Upload ZIP
       with:
         name: macOS .zip (${{matrix.arch}})
         path: artifact-zip
+        if-no-files-found: error
 
   Linux-Build:
     if: inputs.platform == 'linux' || inputs.platform == 'all'
@@ -142,8 +140,6 @@ jobs:
       fail-fast: false
 
     env:
-      CC: ${{matrix.triplet}}gcc
-      CXX: ${{matrix.triplet}}g++
       ARCH: ${{matrix.build-arch}}
       npm_config_arch: ${{matrix.build-arch}}
       npm_config_target_arch: ${{matrix.build-arch}}
@@ -154,11 +150,12 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
+        persist-credentials: false
 
     - name: Install Node
       uses: actions/setup-node@v4.4.0
       with:
-        node-version: 22
+        node-version: 22.22.3
 
     - name: Install FPM
       run: |
@@ -169,49 +166,16 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install libfontconfig1-dev libarchive-tools zsh crossbuild-essential-${{matrix.arch}}
-
-    - name: Setup tar to run as root
-      run: sudo chmod u+s "$(command -v tar)"
-      if: matrix.build-arch == 'arm'
-
-    - name: Download cached sysroot
-      uses: actions/cache@v4
-      id: dl-cached-sysroot
-      if: matrix.build-arch == 'arm'
-      with:
-        key: sysroot-${{matrix.build-arch}}
-        path: /${{matrix.build-arch}}-sysroot
-
-    - name: Setup crossbuild sysroot
-      run: |
-        sudo apt-get update -y && sudo apt-get install debootstrap qemu-user-static binfmt-support -y
-        sudo qemu-debootstrap --include=libfontconfig1-dev,libsecret-1-dev,libnss3,libatk1.0-0,libatk-bridge2.0-0,libgdk-pixbuf2.0-0,libgtk-3-0,libgbm1 --variant=buildd --exclude=snapd --components=main,restricted,universe,multiverse --extractor=dpkg-deb --arch ${{matrix.arch}} bionic /${{matrix.build-arch}}-sysroot/ http://ports.ubuntu.com/ubuntu-ports/
-        sudo find /${{matrix.build-arch}}-sysroot -type l -lname '/*' -exec sh -c 'file="$0"; dir=$(dirname "$file"); target=$(readlink "$0"); prefix=$(dirname "$dir" | sed 's@[^/]*@\.\.@g'); newtarget="$prefix$target"; ln -snf $newtarget $file' {} \; ;
-      if: matrix.build-arch == 'arm' && steps.dl-cached-sysroot.outputs.cache-hit != 'true'
-
-    - name: Setup env to use ${{matrix.build-arch}} sysroot
-      run: |
-        echo "CFLAGS=--sysroot=/${{matrix.build-arch}}-sysroot/" >> $GITHUB_ENV
-        echo "CXXFLAGS=--sysroot=/${{matrix.build-arch}}-sysroot/" >> $GITHUB_ENV
-        echo "LDFLAGS=--sysroot=/${{matrix.build-arch}}-sysroot/" >> $GITHUB_ENV
-
-        [[ ${npm_config_arch} == 'arm' ]] && echo "npm_config_arch=armv7l" >> $GITHUB_ENV
-
-        if [[ ${{matrix.arch}} == 'armhf' ]]; then
-          echo "PKG_CONFIG_PATH=/${{matrix.build-arch}}-sysroot/usr/lib/pkgconfig/:/${{matrix.build-arch}}-sysroot/usr/lib/arm-linux-gnueabihf/pkgconfig/" >> $GITHUB_ENV
-        elif [[ ${{matrix.arch}} == 'arm64' ]]; then
-          echo "PKG_CONFIG_PATH=/${{matrix.build-arch}}-sysroot/usr/lib/pkgconfig/:/${{matrix.build-arch}}-sysroot/usr/lib/aarch64-linux-gnu/pkgconfig/" >> $GITHUB_ENV
-        fi
-      if: matrix.build-arch == 'arm'
+        sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+          build-essential python3 cmake libfontconfig1-dev libsecret-1-dev libarchive-tools zsh
 
     - name: Install npm_modules (native)
       run: |
-        npm i -g yarn node-gyp
-        yarn --network-timeout 1000000 --arch=${{matrix.build-arch}} --target-arch=${{matrix.build-arch}}
+        npm i -g yarn@1.22.22
+        yarn install --frozen-lockfile --network-timeout 1000000
 
     - name: Webpack (${{matrix.arch}})
-      run: yarn run build --arch=${{matrix.build-arch}} --target_arch=${{matrix.build-arch}}
+      run: yarn run build
 
     - name: Prepackage plugins (${{matrix.arch}})
       run: scripts/prepackage-plugins.mjs
@@ -227,43 +191,47 @@ jobs:
       run: zsh -c 'tar czf tabby-web.tar.gz (tabby-*|web)/dist'
       if: matrix.build-arch == 'x64'
 
-
-
     - uses: actions/upload-artifact@v4
       name: Upload AppImage (${{matrix.arch}})
       with:
         name: Linux AppImage (${{matrix.arch}})
         path: dist/*.AppImage
+        if-no-files-found: error
 
     - uses: actions/upload-artifact@v4
       name: Upload DEB (${{matrix.arch}})
       with:
         name: Linux DEB (${{matrix.arch}})
         path: dist/*.deb
+        if-no-files-found: error
 
     - uses: actions/upload-artifact@v4
       name: Upload RPM (${{matrix.arch}})
       with:
         name: Linux RPM (${{matrix.arch}})
         path: dist/*.rpm
+        if-no-files-found: error
 
     - uses: actions/upload-artifact@v4
       name: Upload Pacman Package (${{matrix.arch}})
       with:
         name: Linux Pacman (${{matrix.arch}})
         path: dist/*.pacman
+        if-no-files-found: error
 
     - uses: actions/upload-artifact@v4
       name: Upload Linux tarball (${{matrix.arch}})
       with:
         name: Linux tarball (${{matrix.arch}})
         path: dist/*.tar.gz
+        if-no-files-found: error
 
     - uses: actions/upload-artifact@v4
       name: Upload web tarball (amd64 only)
       with:
         name: Web tarball
         path: tabby-web.tar.gz
+        if-no-files-found: error
       if: matrix.build-arch == 'x64'
 
   Windows-Build:
@@ -279,22 +247,19 @@ jobs:
     env:
       RUST_TARGET_TRIPLE: ${{matrix.rust_triple}}
       ARCH: ${{matrix.arch}}
-      # Branch name that enables DigiCert signing in PR builds for debugging.
-      # Change this value to match the feature branch you want to test signing on.
-      SIGN_ON_BRANCH: signing-debug
 
     steps:
     - name: Checkout
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
+        persist-credentials: false
 
     - name: Add Windows SDK signtool to PATH
       shell: powershell
       run: |
         $x64 = 'C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64'
-        $arm64 = 'C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\arm64'
-        $newPath = "$x64;$arm64;$env:PATH"
+        $newPath = "$x64;$env:PATH"
         echo "PATH=$newPath" >> $env:GITHUB_ENV
 
     - name: Decode certificate
@@ -302,8 +267,8 @@ jobs:
       env:
         SM_CLIENT_CERT_FILE_B64: ${{ secrets.SM_CLIENT_CERT_FILE_B64 }}
       run: |
-        SM_CLIENT_CERT_FILE=$RUNNER_TEMP/certificate.p12
-        echo "$SM_CLIENT_CERT_FILE_B64" | base64 --decode > $SM_CLIENT_CERT_FILE
+        SM_CLIENT_CERT_FILE="$RUNNER_TEMP/certificate.p12"
+        echo "$SM_CLIENT_CERT_FILE_B64" | base64 --decode > "$SM_CLIENT_CERT_FILE"
         echo "SM_CLIENT_CERT_FILE=$SM_CLIENT_CERT_FILE" >> "$GITHUB_ENV"
       shell: bash
 
@@ -349,23 +314,14 @@ jobs:
     - name: Installing Node
       uses: actions/setup-node@v4.4.0
       with:
-        node-version: 22
+        node-version: 22.22.3
 
     - run: rustup target add ${{matrix.rust_triple}}
-
-    - name: Update node-gyp
-      run: |
-        npm install --global node-gyp@10.2.0
-        npm prefix -g | % {npm config set node_gyp "$_\node_modules\node-gyp\bin\node-gyp.js"}
 
     - name: Download Visual C++ Redistributable
       shell: bash
       run: |
-        if [ "$ARCH" = "arm64" ]; then
-          curl -sSL -o build/vc_redist.exe "https://aka.ms/vs/17/release/vc_redist.arm64.exe"
-        else
-          curl -sSL -o build/vc_redist.exe "https://aka.ms/vs/17/release/vc_redist.x64.exe"
-        fi
+        curl -sSL -o build/vc_redist.exe "https://aka.ms/vs/17/release/vc_redist.x64.exe"
         ls -la build/vc_redist.exe
     - name: Build UAC helper
       shell: powershell
@@ -396,8 +352,8 @@ jobs:
     - name: Build
       shell: powershell
       run: |
-        npm i -g yarn node-gyp
-        yarn --network-timeout 1000000
+        npm i -g yarn@1.22.22
+        yarn install --frozen-lockfile --network-timeout 1000000
         yarn run build
         node scripts/prepackage-plugins.mjs
       env:
@@ -453,7 +409,7 @@ jobs:
         # Copy VC Runtime DLLs from Visual Studio
         mkdir "vc-runtime" -Force | Out-Null
 
-        $arch = if ("$env:ARCH" -eq "x64") { "x64" } else { "arm64" }
+        $arch = "x64"
         $crtDir = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\2022\*\VC\Redist\MSVC\*\$arch\Microsoft.VC*.CRT" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($crtDir) {
           @("vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll") | ForEach-Object {
@@ -493,9 +449,11 @@ jobs:
       with:
         name: Windows installer (${{matrix.arch}})
         path: artifact-setup
+        if-no-files-found: error
 
     - uses: actions/upload-artifact@v4
       name: Upload portable build
       with:
         name: Windows portable build (${{matrix.arch}})
         path: artifact-portable
+        if-no-files-found: error

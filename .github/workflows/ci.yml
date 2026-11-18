@@ -23,22 +23,23 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 22.22.3
 
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libfontconfig1-dev libsecret-1-dev
-          npm i -g yarn
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y libfontconfig1-dev libsecret-1-dev
+          npm i -g yarn@1.22.22
           cd app
-          yarn
+          yarn install --frozen-lockfile --network-timeout 1000000
           cd ..
           rm app/node_modules/.yarn-integrity
-          yarn
+          yarn install --frozen-lockfile --network-timeout 1000000
 
       - name: SSH regression tests
         run: yarn run test:ssh-term
