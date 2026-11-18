@@ -3,8 +3,6 @@
 import { build as builder } from 'electron-builder'
 import * as vars from './vars.mjs'
 
-const isTag = (process.env.GITHUB_REF || '').startsWith('refs/tags/')
-
 process.env.ARCH = process.env.ARCH || process.arch
 
 if (process.env.GITHUB_HEAD_REF) {
@@ -12,9 +10,6 @@ if (process.env.GITHUB_HEAD_REF) {
     delete process.env.CSC_KEY_PASSWORD
     process.env.CSC_IDENTITY_AUTO_DISCOVERY = 'false'
 }
-
-process.env.APPLE_ID ??= process.env.APPSTORE_USERNAME
-process.env.APPLE_APP_SPECIFIC_PASSWORD ??= process.env.APPSTORE_PASSWORD
 
 builder({
     dir: true,
@@ -24,12 +19,11 @@ builder({
     config: {
         extraMetadata: {
             version: vars.version,
-            teamId: process.env.APPLE_TEAM_ID,
         },
         forceCodeSigning: !!process.env.CSC_LINK,
         mac: {
             identity: !process.env.CI || process.env.CSC_LINK ? undefined : null,
-            notarize: !!process.env.APPLE_TEAM_ID,
+            notarize: false,
         },
         npmRebuild: process.env.ARCH !== 'arm64',
         publish: [{
@@ -39,7 +33,7 @@ builder({
             channel: `latest-${process.env.ARCH}`,
         }],
     },
-    publish: (process.env.GITHUB_TOKEN && isTag) ? 'always' : 'never',
+    publish: 'never',
 }).catch(e => {
     console.error(e)
     process.exit(1)

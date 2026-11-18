@@ -15,7 +15,7 @@ import {
 } from '../src/services/configSyncConnection.ts'
 
 const templateURL = new URL('../src/components/configSyncSettingsTab.component.pug', import.meta.url)
-const workflowURL = new URL('../../.github/workflows/build.yml', import.meta.url)
+const workflowURL = new URL('../../.github/workflows/ci.yml', import.meta.url)
 const packageURL = new URL('../../package.json', import.meta.url)
 
 function createLogger () {

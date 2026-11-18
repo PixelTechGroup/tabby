@@ -1,19 +1,86 @@
 ---
-name: "tagged-release"
+name: tagged-release
+
+# Release preparation is manual and deliberate. This workflow never publishes
+# a release, never uploads or overwrites assets, and never creates or modifies
+# tags. It only validates a release tag before a human prepares the release
+# through the GitHub CLI or web UI.
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to validate (e.g. v1.0.238-pixeltech.3)'
+        required: true
+        type: string
+      ref:
+        description: 'Expected target commit SHA (optional)'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
 
 jobs:
-  tagged-release:
-    name: "Tagged Release"
-    runs-on: "ubuntu-latest"
-
+  validate-tag:
+    name: Validate release tag
+    runs-on: ubuntu-latest
     steps:
-      - uses: "marvinpinto/action-automatic-releases@latest"
+      - name: Checkout repository and tags
+        uses: actions/checkout@v4
         with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          prerelease: false
-          draft: true
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify tag exists, is annotated, and targets the expected commit
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          EXPECTED_SHA: ${{ inputs.ref }}
+        run: |
+          set -euo pipefail
+
+          tag="${RELEASE_TAG}"
+          expected_sha="${EXPECTED_SHA}"
+
+          # Reject malformed or hostile tag names before they ever reach Git.
+          # Allowed: v<major>.<minor>.<patch> with an optional suffix
+          # (e.g. v1.0.238-pixeltech.3).
+          if ! [[ "${tag}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.+-]+)?$ ]]; then
+              printf '::error::invalid tag name: %s\n' "${tag}"
+              exit 1
+          fi
+
+          # The expected commit must be a full 40-character hex SHA-1.
+          if [[ -n "${expected_sha}" ]] && ! [[ "${expected_sha}" =~ ^[0-9a-f]{40}$ ]]; then
+              printf '::error::invalid expected commit SHA: %s\n' "${expected_sha}"
+              exit 1
+          fi
+
+          # Resolve only the fully qualified tag ref.
+          if ! git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+              printf '::error::tag %s not found\n' "${tag}"
+              exit 1
+          fi
+
+          if [[ "$(git cat-file -t "refs/tags/${tag}")" != 'tag' ]]; then
+              printf '::error::%s is not an annotated tag\n' "${tag}"
+              exit 1
+          fi
+
+          target="$(git rev-list -n1 "refs/tags/${tag}")"
+          printf '::notice::%s -> %s\n' "${tag}" "${target}"
+
+          if [[ -n "${expected_sha}" ]] && [[ "${target}" != "${expected_sha}" ]]; then
+              printf '::error::tag target %s does not match expected %s\n' "${target}" "${expected_sha}"
+              exit 1
+          fi
+
+      - name: Show manual release preparation steps
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          printf '%s\n' 'Release preparation is manual. After validation, create a draft release with:'
+          printf '  %s\n' "gh release create \"${RELEASE_TAG}\" --draft --title \"PixelTech Tabby ${RELEASE_TAG}\" --notes-file RELEASE-NOTES.md <assets...>"
+          printf '%s\n' 'Then publish only after explicit approval with:'
+          printf '  %s\n' "gh release edit \"${RELEASE_TAG}\" --draft=false"
